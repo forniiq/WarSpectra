@@ -1,3 +1,5 @@
+// Отряды
+
 export const APPROVED_UNITS = new Set([
     "LEG",
     "ОСН ТАЙФУН",

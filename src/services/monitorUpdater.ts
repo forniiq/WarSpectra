@@ -1,10 +1,14 @@
+// Мониторинг онлайна сервера
+
 import { Client, EmbedBuilder, TextChannel, ActivityType } from "discord.js";
 import { sendLog } from "@/utils/logger";
 import { getOnlinePlayers, OnlinePlayer } from "@/database/queries";
 import { APPROVED_UNITS } from "@/config/units";
+import { SLOT_ABBREVIATIONS } from "@/config/slots";
 
 const MAX_PLAYERS = 115;
 
+// Пик онлайна за день
 let peakOnlineToday = 0;
 let peakResetDate = new Date().toDateString();
 
@@ -25,12 +29,12 @@ export async function StartMonitorUpdater(client: Client) {
 
     let message = null;
 
-    // Поиск старого сообщения
+    // Попытка восстановить старое сообщение мониторингка
     if (isValidId(messageId)) {
         message = await textChannel.messages.fetch(messageId).catch(() => null);
     }
 
-    // Создание нового сообщения
+    // Если нет сообщения - создание нового
     if (!message) {
         const players = await getOnlinePlayers();
 
@@ -49,19 +53,22 @@ export async function StartMonitorUpdater(client: Client) {
         isUpdating = true;
 
         try {
+            // Получение актуального списка игроков
             const players = await getOnlinePlayers();
 
+            // Обновление статуса бота
             const status =
                 players.length === 0
                     ? "Сервер пуст"
                     : `${players.length} Игроков на сервере`;
-
+            
             client.user?.setActivity(status, {
                 type: ActivityType.Watching
             });
 
             if (!message) return;
 
+            // Сброс дневного пика онлайна
             const today = new Date().toDateString();
 
             if (today !== peakResetDate) {
@@ -73,6 +80,7 @@ export async function StartMonitorUpdater(client: Client) {
                 peakOnlineToday = players.length;
             }
             
+            // Обновление Embed сообщения
             await message.edit({
                 embeds: createEmbeds(players),
             });
@@ -82,9 +90,11 @@ export async function StartMonitorUpdater(client: Client) {
         } finally {
             isUpdating = false;
         }
-    }, 30_000);
+    }, 30_000); // Обновление раз в 30 секунд
 }
 
+
+// Проверка валидности Discord message id
 function isValidId(id: string | undefined): id is string {
     return !!id && id.length > 10;
 }
@@ -129,13 +139,26 @@ function getStatusText(online: number): string {
     return "ВЫСОКАЯ АКТИВНОСТЬ";
 }
 
+// Сокращение/Нормализация слота
+function formatSlot(slot: string, maxLength = 19): string {
+    const abbrev = SLOT_ABBREVIATIONS[slot];
+    if (abbrev) return abbrev;
+
+    return slot.length > maxLength
+        ? slot.slice(0, maxLength - 1) + "…"
+        : slot;
+}
+
+// Агрегация слотов
 function getSlotStats(players: OnlinePlayer[]) {
     const slots = new Map<string, number>();
 
     for (const player of players) {
+        const rawSlot = player.Slot;
+
         slots.set(
-            player.Slot,
-            (slots.get(player.Slot) || 0) + 1
+            rawSlot,
+            (slots.get(rawSlot) || 0) + 1
         );
     }
 
@@ -143,7 +166,7 @@ function getSlotStats(players: OnlinePlayer[]) {
         .sort((a, b) => b[1] - a[1]);
 }
 
-// Получение отряда
+// Получение отряда из никнейма
 function getPlayerUnit(name: string): string | null {
     const match = name.match(/^\[(.+?)\]/);
 
@@ -158,7 +181,7 @@ function getPlayerUnit(name: string): string | null {
         : null;
 }
 
-// Получение списка отрядов
+// Агрегация отрядов
 function getUnitStats(players: OnlinePlayer[]) {
 
     const units = new Map<string, number>();
@@ -180,7 +203,7 @@ function getUnitStats(players: OnlinePlayer[]) {
         .sort((a, b) => b[1] - a[1]);
 }
 
-// Нормализация длинны списков
+// Выравнивание колонок (Для Embed)
 function normalizeColumns(left: string[], right: string[]) {
     const max = Math.max(left.length, right.length);
 
@@ -193,7 +216,7 @@ function normalizeColumns(left: string[], right: string[]) {
     return { l, r };
 }
 
-// Создание Progress Bar
+// Прогресс бар онлайна
 function createProgressBar(
     current: number,
     max: number
@@ -210,7 +233,7 @@ function createProgressBar(
     );
 }
 
-// Главная функция генерации Embed
+// Сбор всех Embed`ов
 function createEmbeds(players: OnlinePlayer[]): EmbedBuilder[] {
     players.sort(
         (a, b) => b.pLvlSort - a.pLvlSort
@@ -226,7 +249,7 @@ function createEmbeds(players: OnlinePlayer[]): EmbedBuilder[] {
     ];
 }
 
-// Шапка мониторинга
+// Шапка мониторинга (общая информация)
 function createHeaderEmbed(online: number, color: number): EmbedBuilder {
     const unix = Math.floor(Date.now() / 1000);
 
@@ -251,11 +274,13 @@ function createHeaderEmbed(online: number, color: number): EmbedBuilder {
         });
 }
 
+// Статистика слотов и отрядов
 function createSlotsEmbed(players: OnlinePlayer[], color: number): EmbedBuilder {
+    const SLOT_COL_WIDTH = 14;
     const slots = getSlotStats(players)
         .slice(0, 15)
         .map(([slot, count]) =>
-            `${String(count).padStart(2)} │ ${slot}`
+            `${String(count).padStart(2)} │ ${formatSlot(slot).padEnd(SLOT_COL_WIDTH)}`
         );
 
     const units = getUnitStats(players)
@@ -282,7 +307,7 @@ function createSlotsEmbed(players: OnlinePlayer[], color: number): EmbedBuilder 
         );
 }
 
-// Создание Embed - Списка игроков
+// Список игроков
 function createPlayerEmbeds(players: OnlinePlayer[], color: number): EmbedBuilder[] {
     const embeds: EmbedBuilder[] = [];
 
@@ -301,7 +326,7 @@ function createPlayerEmbeds(players: OnlinePlayer[], color: number): EmbedBuilde
             .join("\n");
 
         const slots = chunk
-            .map(p => p.Slot)
+            .map(p => formatSlot(p.Slot))
             .join("\n");
 
         embeds.push(
