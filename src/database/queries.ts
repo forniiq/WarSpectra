@@ -34,7 +34,7 @@ export async function getOnlinePlayers(): Promise<OnlinePlayer[]> {
             s.pLvl,
             s.pLvlSort,
             s.Slot
-        FROM players_online o
+        FROM stats o
         INNER JOIN players p
             ON o.pUID = p.pUID
         INNER JOIN stats s
