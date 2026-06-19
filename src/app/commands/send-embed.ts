@@ -79,6 +79,8 @@ export const command: CommandData = {
 };
 
 export const chatInput: ChatInputCommand = async (ctx) => {
+    console.log("send-embed started");
+
     await ctx.interaction.deferReply({ ephemeral: true }).catch(() => null);
 
     const jsonInput = ctx.interaction.options.getString('json');
