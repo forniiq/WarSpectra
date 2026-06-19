@@ -279,7 +279,7 @@ function createHeaderEmbed(online: number, zbd: ZBDInfo | null, color: number): 
                 `НАГРУЗКА       | ${createProgressBar(online, zbd?.MaxPlayers ?? 0)}`,
                 `               |`,
                 `ГОРОД          | ${zbdCity}`,
-                `ВРЕМЯ БД       | ${zbdTime}`,
+                `ВРЕМЯ ЗБД       | ${zbdTime}`,
                 `FPS СЕРВЕРА    | ${zbd?.FPS ?? "—"}`,
                 "```",
                 "",
