@@ -10,6 +10,8 @@ import { SLOT_ABBREVIATIONS } from "@/config/slots";
 let peakOnlineToday = 0;
 let peakResetDate = new Date().toDateString();
 
+const MAX_ONLINE = 90
+
 // Запуск мониторинга
 export async function StartMonitorUpdater(client: Client) {
     const channelId = process.env.MONITOR_CHANNEL_ID!;
@@ -273,10 +275,10 @@ function createHeaderEmbed(online: number, zbd: ZBDInfo | null, color: number): 
             [
                 "```yaml",
                 `СТАТУС         | ${getStatusText(online)}`,
-                `ОНЛАЙН         | ${online}/${zbd?.MaxPlayers ?? 0}`,
+                `ОНЛАЙН         | ${online}/${MAX_ONLINE ?? 0}`,
                 `ПИК ЗА СУТКИ   | ${peakOnlineToday}`,
                 `СЕРВЕР         | ${process.env.SERVER_IP}:${process.env.SERVER_PORT}`,
-                `НАГРУЗКА       | ${createProgressBar(online, zbd?.MaxPlayers ?? 0)}`,
+                `НАГРУЗКА       | ${createProgressBar(online, MAX_ONLINE ?? 0)}`,
                 `               |`,
                 `ГОРОД          | ${zbdCity}`,
                 `ВРЕМЯ ЗБД      | ${zbdTime}`,

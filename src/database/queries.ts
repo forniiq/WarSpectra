@@ -12,8 +12,68 @@ export interface OnlinePlayer {
 export interface ZBDInfo {
     City: string;
     Time: number;
-    MaxPlayers: number;
     FPS: string;
+}
+
+export interface PlayerInfo {
+    pUID: string;
+    pName: string;
+    pLvl: string;
+    pExp: number;
+    pUnits: string;
+    DiscID: string | null;
+}
+
+export async function findPlayer(search: {
+    steamId?: string;
+    nickname?: string;
+    discordId?: string;
+}): Promise<PlayerInfo | null> {
+
+    const replacements: Record<string, string> = {};
+
+    let whereField: string | null = null;
+
+    if (search.steamId) {
+        whereField = "pUID";
+        replacements.value = search.steamId;
+    }
+
+    else if (search.nickname) {
+        whereField = "pName";
+        replacements.value = search.nickname;
+    }
+
+    else if (search.discordId) {
+        whereField = "DiscID";
+        replacements.value = search.discordId;
+    }
+
+    else {
+        return null;
+    }
+
+    const [rows] = await sequelize.query(
+        `
+        SELECT
+            pUID,
+            pName,
+            pLvl,
+            pExp,
+            pUnits,
+            DiscID
+        FROM players
+        WHERE ${whereField} = :value
+        LIMIT 1
+        `,
+        {
+            replacements
+        }
+    );
+
+    const result = (rows as PlayerInfo[])[0];
+
+    return result ?? null;
 }
 
 // Количество игроков на сервере
@@ -51,7 +111,6 @@ export async function getCurrentZbd(): Promise<ZBDInfo | null> {
         SELECT
             City,
             Time,
-            MaxPlayers,
             FPS
         FROM info
         ORDER BY Time DESC
